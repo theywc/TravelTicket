@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="旅遊票夾">
+<meta name="theme-color" content="#ffffff">
+<title>旅遊票夾</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f0;--card:#fff;--text:#1a1a1a;--text2:#6b6b6b;
+  --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
+  --accent:#1a5fa8;--accent-bg:#e8f0fb;
+  --green-bg:#eaf3de;--green-text:#27500a;
+  --amber-bg:#faeeda;--amber-text:#633806;
+  --red-bg:#fcebeb;--red-text:#791f1f;
+  --r:12px;--rs:8px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#111110;--card:#1e1e1c;--text:#f0ede8;--text2:#9a9890;
+    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);
+    --accent:#6baee8;--accent-bg:#0c2a4a;
+    --green-bg:#173404;--green-text:#c0dd97;
+    --amber-bg:#412402;--amber-text:#fac775;
+    --red-bg:#501313;--red-text:#f7c1c1;
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px}
+.nav-title{font-size:17px;font-weight:600;letter-spacing:-0.3px}
+.nav-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.nav-btn{background:none;border:1px solid var(--border2);border-radius:var(--rs);padding:6px 12px;font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:4px}
+
+/* TABS */
+.tabs{display:flex;background:var(--card);border-bottom:0.5px solid var(--border);padding:0 16px}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:14px;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;transition:all .15s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+
+/* VIEWS */
+.view{display:none;padding:16px}
+.view.active{display:block}
+
+/* EMPTY IMPORT STATE */
+.import-prompt{text-align:center;padding:3rem 1rem}
+.import-prompt h2{font-size:18px;font-weight:500;margin-bottom:8px}
+.import-prompt p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:1.5rem}
+.btn-import-big{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:var(--rs);font-size:15px;cursor:pointer}
+
+/* DAY CARD */
+.day-card{background:var(--card);border:0.5px solid var(--border);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.day-card-header{padding:12px 14px 10px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.date-badge{font-size:13px;font-weight:600;padding:3px 10px;border-radius:6px}
+.badge-ok{background:var(--green-bg);color:var(--green-text)}
+.badge-mixed{background:var(--amber-bg);color:var(--amber-text)}
+.badge-rain{background:var(--red-bg);color:var(--red-text)}
+.day-subtitle{font-size:13px;color:var(--text2)}
+.weather-strip{padding:8px 14px;display:flex;gap:5px;flex-wrap:wrap;border-bottom:0.5px solid var(--border);background:var(--bg)}
+.w-tag{font-size:11px;padding:2px 7px;border-radius:5px;border:0.5px solid var(--border);color:var(--text2);background:var(--card)}
+.slots{padding:0 14px}
+.slot{display:flex;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border);align-items:flex-start}
+.slot:last-child{border-bottom:none}
+.slot-time{font-size:11px;color:var(--text2);min-width:44px;margin-top:2px;flex-shrink:0}
+.slot-title{font-size:14px;font-weight:500;color:var(--text);line-height:1.4}
+.slot-title.hi{color:var(--accent)}
+.slot-note{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5}
+
+/* EDIT */
+.slot-title-input,.slot-note-input{width:100%;border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:14px;color:var(--text);background:var(--bg);margin-top:2px;font-family:inherit}
+.slot-note-input{font-size:12px;resize:vertical;min-height:48px}
+.edit-bar{display:none;padding:8px 14px;border-top:0.5px solid var(--border);gap:8px}
+.edit-bar.visible{display:flex}
+.edit-save-btn,.edit-cancel-btn{flex:1;padding:8px;border-radius:var(--rs);font-size:13px;cursor:pointer;border:none}
+.edit-save-btn{background:var(--accent);color:#fff}
+.edit-cancel-btn{background:var(--bg);color:var(--text);border:0.5px solid var(--border2)}
+
+.outfit-box{margin:10px 14px 12px;background:var(--bg);border-radius:var(--rs);padding:10px 12px}
+.outfit-label{font-size:11px;color:var(--text2);margin-bottom:6px}
+.outfit-items{display:flex;gap:5px;flex-wrap:wrap}
+.outfit-item{font-size:12px;padding:3px 8px;border-radius:5px;background:var(--card);border:0.5px solid var(--border);color:var(--text)}
+
+.tip-box{background:var(--accent-bg);border-radius:var(--rs);padding:10px 14px;font-size:12px;color:var(--accent);margin:0 0 12px;line-height:1.6;display:flex;gap:6px}
+
+/* TICKETS IN DAY */
+.tickets-section{padding:0 14px 12px}
+.tickets-header{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px;border-top:0.5px solid var(--border)}
+.tickets-label{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.05em;text-transform:uppercase}
+.add-ticket-btn{font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:3px}
+.ticket-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);cursor:pointer}
+.ticket-row:last-child{border-bottom:none}
+.ticket-icon{width:34px;height:34px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ticket-icon.flight{background:#dbeafe}.ticket-icon.train{background:#dcfce7}
+.ticket-icon.attraction{background:#fef9c3}.ticket-icon.hotel{background:#fce7f3}.ticket-icon.other{background:#f3f4f6}
+.ticket-name{flex:1;font-size:13px;font-weight:500;color:var(--text)}
+.ticket-sub-text{font-size:11px;color:var(--text2);margin-top:1px}
+.no-tickets{font-size:13px;color:var(--text2);padding:8px 0 4px}
+
+/* ALL TICKETS VIEW */
+.section-title{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin:1.25rem 0 8px}
+.ticket-card{background:var(--card);border:0.5px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.ticket-card:active{opacity:.8}
+.ticket-card-icon{width:42px;height:42px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.ticket-card-info{flex:1;min-width:0}
+.ticket-card-title{font-size:15px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ticket-card-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.ticket-card-time{font-size:13px;color:var(--text2);flex-shrink:0}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text2);font-size:14px;line-height:2}
+
+/* SHEET */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.sheet{background:var(--card);border-radius:20px 20px 0 0;padding:0 0 env(safe-area-inset-bottom,16px);width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:10px auto 4px}
+.sheet-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0}
+.sheet-title{font-size:17px;font-weight:600}
+.sheet-close{background:var(--bg);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text2)}
+.qr-area{margin:16px;background:var(--bg);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.qr-hint{font-size:12px;color:var(--text2)}
+.detail-list{padding:0 16px}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:14px}
+.detail-row:last-child{border-bottom:none}
+.detail-key{color:var(--text2)}
+.detail-val{font-weight:500;color:var(--text);text-align:right;max-width:60%}
+.sheet-actions{padding:12px 16px 4px;display:flex;flex-direction:column;gap:8px}
+.btn-fullscreen,.btn-delete{width:100%;padding:12px;border-radius:var(--rs);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;border:none}
+.btn-fullscreen{background:var(--accent);color:#fff;font-weight:500}
+.btn-delete{background:var(--bg);color:#c0392b;border:0.5px solid var(--border2)}
+
+/* FULLSCREEN QR */
+.fullscreen-qr{display:none;position:fixed;inset:0;background:#fff;z-index:300;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px}
+.fullscreen-qr.open{display:flex}
+.fs-name{font-size:20px;font-weight:600;color:#111;text-align:center}
+.fs-sub{font-size:14px;color:#666;text-align:center}
+.fs-close{position:fixed;top:20px;right:20px;background:#eee;border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center}
+
+/* ADD / IMPORT SHEETS */
+.add-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.add-overlay.open{display:flex}
+.form-group{padding:0 16px;margin-bottom:14px}
+.form-label{font-size:12px;color:var(--text2);margin-bottom:5px;display:block}
+.form-input{width:100%;padding:10px 12px;border-radius:var(--rs);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:15px;font-family:inherit}
+.form-input:focus{outline:none;border-color:var(--accent)}
+.form-textarea{width:100%;padding:10px 12px;border-radius:var(--rs);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;min-height:140px;resize:vertical}
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px;margin-bottom:14px}
+.type-btn{padding:10px 8px;border-radius:var(--rs);border:0.5px solid var(--border);background:var(--bg);cursor:pointer;font-size:13px;text-align:center;color:var(--text);transition:all .15s}
+.type-btn.selected{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);font-weight:500}
+.submit-wrap{padding:8px 16px 16px}
+.btn-submit{width:100%;padding:14px;border:none;border-radius:var(--rs);background:var(--accent);color:#fff;font-size:16px;font-weight:500;cursor:pointer}
+.btn-submit:active{opacity:.85}
+
+.fab{position:fixed;bottom:24px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:24px;cursor:pointer;z-index:40;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+
+.import-error{font-size:13px;color:#c0392b;padding:0 16px 8px;display:none}
+
+/* SHOPPING */
+.shop-summary{display:flex;gap:8px;margin-bottom:16px}
+.shop-stat{flex:1;background:var(--card);border:0.5px solid var(--border);border-radius:var(--rs);padding:10px 12px;text-align:center}
+.shop-stat-num{font-size:20px;font-weight:600;color:var(--text)}
+.shop-stat-label{font-size:11px;color:var(--text2);margin-top:2px}
+.cat-section{margin-bottom:16px}
+.cat-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cat-label{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.cat-add-btn{font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:3px}
+.shop-item{background:var(--card);border:0.5px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:opacity .15s}
+.shop-item.done{opacity:.45}
+.shop-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;background:none}
+.shop-item.done .shop-check{background:var(--accent);border-color:var(--accent);color:#fff}
+.shop-item-info{flex:1;min-width:0}
+.shop-item-name{font-size:14px;font-weight:500;color:var(--text);line-height:1.3}
+.shop-item.done .shop-item-name{text-decoration:line-through}
+.shop-item-note{font-size:12px;color:var(--text2);margin-top:2px}
+.shop-item-price{font-size:13px;color:var(--text2);flex-shrink:0}
+.shop-del-btn{background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px;flex-shrink:0}
+.cat-pill{font-size:11px;padding:2px 8px;border-radius:20px}
+.cat-pill.藥妝{background:#fce7f3;color:#9d174d}
+.cat-pill.食品{background:#fef9c3;color:#854d0e}
+.cat-pill.伴手禮{background:#dcfce7;color:#166534}
+.cat-pill.其他{background:#f3f4f6;color:#374151}
+@media(prefers-color-scheme:dark){
+  .cat-pill.藥妝{background:#4a0e2a;color:#f9a8d4}
+  .cat-pill.食品{background:#3d2008;color:#fde68a}
+  .cat-pill.伴手禮{background:#052e16;color:#86efac}
+  .cat-pill.其他{background:#1f2937;color:#d1d5db}
+}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div>
+    <div class="nav-title" id="nav-title">🗾 旅遊票夾</div>
+    <div class="nav-sub" id="nav-sub">尚未匯入行程</div>
+  </div>
+  <button class="nav-btn" id="edit-toggle-btn" onclick="toggleEditMode()" style="display:none">
+    <i class="ti ti-edit"></i> 編輯行程
+  </button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('itinerary',this)">行程</div>
+  <div class="tab" onclick="switchTab('tickets',this)">票券</div>
+  <div class="tab" onclick="switchTab('shopping',this)">購物</div>
+</div>
+
+<div class="view active" id="view-itinerary">
+  <div id="itinerary-container"></div>
+</div>
+
+<div class="view" id="view-shopping">
+  <div id="shopping-container"></div>
+</div>
+
+<div class="view" id="view-tickets">
+  <div id="all-tickets-container"></div>
+</div>
+
+<button class="fab" onclick="openAdd(null)"><i class="ti ti-plus"></i></button>
+
+<!-- ADD SHOP ITEM SHEET -->
+<div class="add-overlay" id="shop-overlay" onclick="handleBgClick(event,'shop-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">新增購物項目</span>
+      <button class="sheet-close" onclick="closeShop()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="height:14px"></div>
+    <div class="form-group"><label class="form-label">品名</label><input class="form-input" id="sh-name" type="text" placeholder="例：DHC 唇膏"></div>
+    <div class="form-group">
+      <label class="form-label">分類</label>
+      <div class="type-grid" style="padding:0;margin:0">
+        <button class="type-btn selected" data-cat="藥妝" onclick="selCat(this)">💊 藥妝</button>
+        <button class="type-btn" data-cat="食品" onclick="selCat(this)">🍜 食品</button>
+        <button class="type-btn" data-cat="伴手禮" onclick="selCat(this)">🎁 伴手禮</button>
+        <button class="type-btn" data-cat="其他" onclick="selCat(this)">📦 其他</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="sh-note" type="text" placeholder="例：大創、松本清都有賣"></div>
+    <div class="form-group"><label class="form-label">預算金額（選填）</label><input class="form-input" id="sh-price" type="text" placeholder="例：¥1,200"></div>
+    <div class="submit-wrap"><button class="btn-submit" onclick="addShopItem()">加入清單</button></div>
+  </div>
+</div>
+
+<!-- DETAIL SHEET -->
+<div class="overlay" id="detail-overlay" onclick="handleBgClick(event,'detail-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title" id="sheet-title"></span>
+      <button class="sheet-close" onclick="closeDetail()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="qr-area">
+      <canvas id="qr-modal" width="180" height="180"></canvas>
+      <span class="qr-hint">點「全螢幕」放大給工作人員掃</span>
+    </div>
+    <div class="detail-list" id="detail-list"></div>
+    <div class="sheet-actions">
+      <button class="btn-fullscreen" onclick="openFullscreen()"><i class="ti ti-maximize"></i> 全螢幕顯示 QR Code</button>
+      <button class="btn-delete" onclick="deleteTicket()"><i class="ti ti-trash"></i> 刪除票券</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TICKET SHEET -->
+<div class="add-overlay" id="add-overlay" onclick="handleBgClick(event,'add-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">新增票券</span>
+      <button class="sheet-close" onclick="closeAdd()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="height:14px"></div>
+    <div style="padding:0 16px;margin-bottom:14px">
+      <div class="form-label">票券類型</div>
+      <div class="type-grid" style="padding:0;margin:0">
+        <button class="type-btn selected" data-type="flight" onclick="selType(this)">✈️ 機票</button>
+        <button class="type-btn" data-type="train" onclick="selType(this)">🚄 火車/地鐵</button>
+        <button class="type-btn" data-type="attraction" onclick="selType(this)">🎡 景點門票</button>
+        <button class="type-btn" data-type="hotel" onclick="selType(this)">🏨 飯店/住宿</button>
+        <button class="type-btn" data-type="other" onclick="selType(this)" style="grid-column:1/-1">🎟 其他</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">票券名稱</label><input class="form-input" id="f-name" type="text" placeholder="例：阿寒湖遊船票"></div>
+    <div class="form-group"><label class="form-label">使用日期</label><input class="form-input" id="f-date" type="date"></div>
+    <div class="form-group"><label class="form-label">時間（選填）</label><input class="form-input" id="f-time" type="time"></div>
+    <div class="form-group"><label class="form-label">備註（選填）</label><input class="form-input" id="f-note" type="text" placeholder="例：座位 12A、第2航廈"></div>
+    <div class="form-group"><label class="form-label">QR Code 內容（票號或訂單號）</label><input class="form-input" id="f-qr" type="text" placeholder="貼上票號或訂單確認碼"></div>
+    <div class="submit-wrap"><button class="btn-submit" onclick="addTicket()">加入票夾</button></div>
+  </div>
+</div>
+
+<!-- IMPORT SHEET -->
+<div class="add-overlay" id="import-overlay" onclick="handleBgClick(event,'import-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">匯入行程</span>
+      <button class="sheet-close" onclick="closeImport()"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="height:14px"></div>
+    <div class="form-group">
+      <label class="form-label">貼上 JSON 內容</label>
+      <textarea class="form-textarea" id="import-json" placeholder='貼上 hokkaido_data.json 的內容...'></textarea>
+    </div>
+    <div class="import-error" id="import-error">格式錯誤，請確認 JSON 內容是否完整</div>
+    <div class="submit-wrap" style="display:flex;gap:8px">
+      <button class="btn-submit" style="background:var(--bg);color:var(--text);border:0.5px solid var(--border2);flex:1" onclick="closeImport()">取消</button>
+      <button class="btn-submit" style="flex:2" onclick="doImport()">匯入</button>
+    </div>
+  </div>
+</div>
+
+<!-- FULLSCREEN QR -->
+<div class="fullscreen-qr" id="fullscreen-view">
+  <button class="fs-close" onclick="closeFullscreen()"><i class="ti ti-x"></i></button>
+  <canvas id="qr-fs" width="280" height="280"></canvas>
+  <div class="fs-name" id="fs-name"></div>
+  <div class="fs-sub" id="fs-sub"></div>
+</div>
+
+<script>
+const TK = 'hk_tickets_v2';
+const IK = 'hk_itinerary_v2';
+const TICON = {flight:'✈️',train:'🚄',attraction:'🎡',hotel:'🏨',other:'🎟'};
+const TLABEL = {flight:'機票',train:'火車/地鐵',attraction:'景點門票',hotel:'飯店/住宿',other:'其他'};
+const TCLS = {flight:'flight',train:'train',attraction:'attraction',hotel:'hotel',other:'other'};
+const DAYS = ['日','一','二','三','四','五','六'];
+
+let tickets = [];
+let itinerary = null;
+let selType_ = 'flight';
+let activeId = null;
+let editMode = false;
+let editSnap = {};
+
+function load() {
+  try { tickets = JSON.parse(localStorage.getItem(TK)||'[]'); } catch(e){ tickets=[]; }
+  try { itinerary = JSON.parse(localStorage.getItem(IK)||'null'); } catch(e){ itinerary=null; }
+  renderNav();
+  renderItinerary();
+  renderAllTickets();
+}
+
+function save() {
+  try {
+    localStorage.setItem(TK, JSON.stringify(tickets));
+    if (itinerary) localStorage.setItem(IK, JSON.stringify(itinerary));
+  } catch(e){}
+}
+
+/* NAV */
+function renderNav() {
+  if (itinerary) {
+    document.getElementById('nav-title').textContent = '🗾 ' + itinerary.trip.title;
+    document.getElementById('nav-sub').textContent = itinerary.trip.subtitle;
+    document.getElementById('edit-toggle-btn').style.display = 'flex';
+  } else {
+    document.getElementById('nav-title').textContent = '🗾 旅遊票夾';
+    document.getElementById('nav-sub').textContent = '尚未匯入行程';
+    document.getElementById('edit-toggle-btn').style.display = 'none';
+  }
+}
+
+/* ITINERARY */
+function renderItinerary() {
+  const c = document.getElementById('itinerary-container');
+  if (!itinerary) {
+    c.innerHTML = `
+      <div class="import-prompt">
+        <h2>還沒有行程資料</h2>
+        <p>把 hokkaido_data.json 的內容貼進來<br>行程和天氣就會出現在這裡</p>
+        <button class="btn-import-big" onclick="openImport()">
+          <i class="ti ti-upload"></i> 匯入行程 JSON
+        </button>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+  if (itinerary.trip.tip) {
+    html += `<div class="tip-box" style="margin-top:4px"><i class="ti ti-info-circle" aria-hidden="true"></i>${itinerary.trip.tip}</div>`;
+  }
+
+  itinerary.days.forEach((day, i) => {
+    const dayTickets = tickets.filter(t => t.date === day.date);
+    html += `
+    <div class="day-card" data-day="${i}">
+      <div class="day-card-header">
+        <span class="date-badge badge-${day.badge}">${day.label}</span>
+        <span class="day-subtitle">${day.subtitle}</span>
+      </div>
+      <div class="weather-strip">
+        ${day.weather.map(w=>`<span class="w-tag">${w}</span>`).join('')}
+      </div>
+      <div class="slots">
+        ${day.slots.map((s,j) => `
+          <div class="slot">
+            <div class="slot-time">${s.time}</div>
+            <div class="slot-content">
+              <div class="slot-title${s.highlight?' hi':''}" data-day="${i}" data-slot="${j}" data-field="title">${s.title}</div>
+              <div class="slot-note" data-day="${i}" data-slot="${j}" data-field="note">${s.note}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="outfit-box">
+        <div class="outfit-label">穿衣建議</div>
+        <div class="outfit-items">${day.outfit.map(o=>`<span class="outfit-item">${o}</span>`).join('')}</div>
+      </div>
+      <div class="tickets-section">
+        <div class="tickets-header">
+          <span class="tickets-label">🎫 當日票券</span>
+          <button class="add-ticket-btn" onclick="openAdd('${day.date}')"><i class="ti ti-plus"></i> 新增</button>
+        </div>
+        <div class="day-tickets" data-date="${day.date}">
+          ${dayTickets.length === 0
+            ? '<div class="no-tickets">尚無票券</div>'
+            : dayTickets.sort((a,b)=>(a.time||'').localeCompare(b.time||'')).map(t=>`
+              <div class="ticket-row" onclick="openDetail(${t.id})">
+                <div class="ticket-icon ${TCLS[t.type]||'other'}">${TICON[t.type]||'🎟'}</div>
+                <div style="flex:1;min-width:0">
+                  <div class="ticket-name">${t.name}</div>
+                  <div class="ticket-sub-text">${TLABEL[t.type]||'其他'}${t.note?' · '+t.note:''}${t.time?' · '+t.time:''}</div>
+                </div>
+                <i class="ti ti-chevron-right" style="color:var(--text2);font-size:14px"></i>
+              </div>`).join('')}
+        </div>
+      </div>
+      <div class="edit-bar" id="edit-bar-${i}">
+        <button class="edit-cancel-btn" onclick="cancelEdit(${i})">取消</button>
+        <button class="edit-save-btn" onclick="saveEdit(${i})">儲存</button>
+      </div>
+    </div>`;
+  });
+
+  html += `<div style="text-align:center;padding:1rem 0;font-size:13px;color:var(--text2)">
+    可在票券頁新增其他日期的票券
+    <br><br>
+    <button onclick="openImport()" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;text-decoration:underline">重新匯入行程 JSON</button>
+  </div>`;
+
+  c.innerHTML = html;
+}
+
+/* ALL TICKETS */
+function renderAllTickets() {
+  const c = document.getElementById('all-tickets-container');
+  if (tickets.length === 0) {
+    c.innerHTML = '<div class="empty-state">還沒有票券<br>點右下角 + 開始新增</div>';
+    return;
+  }
+  const sorted = [...tickets].sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||''));
+  const grouped = {};
+  sorted.forEach(t => { const k=t.date||'no-date'; if(!grouped[k])grouped[k]=[]; grouped[k].push(t); });
+  c.innerHTML = Object.keys(grouped).sort().map(d => {
+    const label = d==='no-date'?'日期未設定':(()=>{ const dt=new Date(d+'T00:00:00'); return `${dt.getMonth()+1}/${dt.getDate()} (${DAYS[dt.getDay()]})`; })();
+    return `<div class="section-title">${label}</div>
+      ${grouped[d].map(t=>`
+        <div class="ticket-card" onclick="openDetail(${t.id})">
+          <div class="ticket-card-icon ${TCLS[t.type]||'other'}">${TICON[t.type]||'🎟'}</div>
+          <div class="ticket-card-info">
+            <div class="ticket-card-title">${t.name}</div>
+            <div class="ticket-card-sub">${TLABEL[t.type]||'其他'}${t.note?' · '+t.note:''}</div>
+          </div>
+          <div class="ticket-card-time">${t.time||''}</div>
+        </div>`).join('')}`;
+  }).join('');
+}
+
+/* DETAIL */
+function openDetail(id) {
+  const t = tickets.find(x=>x.id===id);
+  if (!t) return;
+  activeId = id;
+  document.getElementById('sheet-title').textContent = t.name;
+  document.getElementById('fs-name').textContent = t.name;
+  const dateStr = t.date?(()=>{ const dt=new Date(t.date+'T00:00:00'); return `${dt.getMonth()+1}/${dt.getDate()} (${DAYS[dt.getDay()]})`; })():'';
+  document.getElementById('fs-sub').textContent = dateStr+(t.time?' '+t.time:'');
+  const rows = [['類型',TLABEL[t.type]||'其他'],t.date?['日期',dateStr]:null,t.time?['時間',t.time]:null,t.note?['備註',t.note]:null,t.qr?['票號',t.qr]:null].filter(Boolean);
+  document.getElementById('detail-list').innerHTML = rows.map(([k,v])=>`<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`).join('');
+  const qr = t.qr||t.name;
+  genQR('qr-modal', qr, 180);
+  genQR('qr-fs', qr, 280);
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function genQR(id, text, size) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
+  const tmp = document.createElement('div');
+  tmp.style.cssText='position:absolute;left:-9999px;top:-9999px';
+  document.body.appendChild(tmp);
+  new QRCode(tmp,{text:text||'ticket',width:size,height:size,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+  setTimeout(()=>{
+    const src=tmp.querySelector('canvas')||tmp.querySelector('img');
+    if(src){ if(src.tagName==='CANVAS'){ctx.drawImage(src,0,0,size,size);}else{const i=new Image();i.onload=()=>ctx.drawImage(i,0,0,size,size);i.src=src.src;} }
+    document.body.removeChild(tmp);
+  },80);
+}
+
+function closeDetail(){ document.getElementById('detail-overlay').classList.remove('open'); activeId=null; }
+function openFullscreen(){ document.getElementById('fullscreen-view').classList.add('open'); }
+function closeFullscreen(){ document.getElementById('fullscreen-view').classList.remove('open'); }
+function deleteTicket(){
+  if(!activeId) return;
+  if(!confirm('確定要刪除這張票券？')) return;
+  tickets=tickets.filter(t=>t.id!==activeId);
+  save(); renderAllTickets(); renderItinerary(); closeDetail();
+}
+
+/* ADD */
+function openAdd(date){
+  document.getElementById('f-date').value = date||new Date().toISOString().slice(0,10);
+  ['f-name','f-time','f-note','f-qr'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('add-overlay').classList.add('open');
+}
+function closeAdd(){ document.getElementById('add-overlay').classList.remove('open'); }
+function selType(btn){ document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); selType_=btn.dataset.type; }
+function addTicket(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('請輸入票券名稱');return;}
+  tickets.push({id:Date.now(),type:selType_,name,date:document.getElementById('f-date').value,time:document.getElementById('f-time').value,note:document.getElementById('f-note').value.trim(),qr:document.getElementById('f-qr').value.trim()||name});
+  save(); renderAllTickets(); renderItinerary(); closeAdd();
+}
+
+/* IMPORT */
+function openImport(){ document.getElementById('import-json').value=''; document.getElementById('import-error').style.display='none'; document.getElementById('import-overlay').classList.add('open'); }
+function closeImport(){ document.getElementById('import-overlay').classList.remove('open'); }
+function doImport(){
+  const raw = document.getElementById('import-json').value.trim();
+  try {
+    const data = JSON.parse(raw);
+    if (!data.trip || !data.days) throw new Error('invalid');
+    itinerary = data;
+    localStorage.setItem(IK, JSON.stringify(itinerary));
+    closeImport();
+    renderNav();
+    renderItinerary();
+  } catch(e) {
+    document.getElementById('import-error').style.display='block';
+  }
+}
+
+/* EDIT MODE */
+function toggleEditMode(){
+  editMode=!editMode;
+  const btn=document.getElementById('edit-toggle-btn');
+  btn.innerHTML=editMode?'<i class="ti ti-x"></i> 結束編輯':'<i class="ti ti-edit"></i> 編輯行程';
+  if(!editMode){ document.querySelectorAll('.day-card').forEach((_,i)=>cancelEdit(i)); return; }
+  document.querySelectorAll('.day-card').forEach((card,i)=>{
+    editSnap[i]={};
+    card.querySelectorAll('[data-field]').forEach(el=>{
+      const key=`${el.dataset.day}-${el.dataset.slot}-${el.dataset.field}`;
+      editSnap[i][key]=el.textContent;
+      const isNote=el.dataset.field==='note';
+      const inp=document.createElement(isNote?'textarea':'input');
+      inp.className=isNote?'slot-note-input':'slot-title-input';
+      if(!isNote) inp.type='text';
+      inp.value=el.textContent;
+      inp.dataset.day=el.dataset.day; inp.dataset.slot=el.dataset.slot; inp.dataset.field=el.dataset.field;
+      el.replaceWith(inp);
+    });
+    const eb=document.getElementById('edit-bar-'+i);
+    if(eb) eb.classList.add('visible');
+  });
+}
+
+function saveEdit(i){
+  const card=document.querySelector(`.day-card[data-day="${i}"]`);
+  card.querySelectorAll('.slot-title-input,.slot-note-input').forEach(inp=>{
+    const isNote=inp.classList.contains('slot-note-input');
+    const di=parseInt(inp.dataset.day), si=parseInt(inp.dataset.slot);
+    if(itinerary && itinerary.days[di] && itinerary.days[di].slots[si]){
+      itinerary.days[di].slots[si][isNote?'note':'title']=inp.value;
+    }
+    const el=document.createElement('div');
+    el.className=isNote?'slot-note':'slot-title';
+    el.dataset.day=inp.dataset.day; el.dataset.slot=inp.dataset.slot; el.dataset.field=inp.dataset.field;
+    el.textContent=inp.value;
+    inp.replaceWith(el);
+  });
+  const eb=document.getElementById('edit-bar-'+i);
+  if(eb) eb.classList.remove('visible');
+  save();
+}
+
+function cancelEdit(i){
+  const card=document.querySelector(`.day-card[data-day="${i}"]`);
+  if(!card) return;
+  card.querySelectorAll('.slot-title-input,.slot-note-input').forEach(inp=>{
+    const isNote=inp.classList.contains('slot-note-input');
+    const key=`${inp.dataset.day}-${inp.dataset.slot}-${inp.dataset.field}`;
+    const el=document.createElement('div');
+    el.className=isNote?'slot-note':'slot-title';
+    el.dataset.day=inp.dataset.day; el.dataset.slot=inp.dataset.slot; el.dataset.field=inp.dataset.field;
+    el.textContent=(editSnap[i]&&editSnap[i][key]!==undefined)?editSnap[i][key]:inp.value;
+    inp.replaceWith(el);
+  });
+  const eb=document.getElementById('edit-bar-'+i);
+  if(eb) eb.classList.remove('visible');
+}
+
+
+/* SHOPPING */
+const SK = 'hk_shopping_v1';
+let shopItems = [];
+let selCat_ = '藥妝';
+const CATS = ['藥妝','食品','伴手禮','其他'];
+const CAT_ICON = {'藥妝':'💊','食品':'🍜','伴手禮':'🎁','其他':'📦'};
+
+function loadShop(){ try{ shopItems=JSON.parse(localStorage.getItem(SK)||'[]'); }catch(e){ shopItems=[]; } }
+function saveShop(){ try{ localStorage.setItem(SK,JSON.stringify(shopItems)); }catch(e){} }
+
+function renderShopping(){
+  const c=document.getElementById('shopping-container');
+  if(!c) return;
+  const total=shopItems.length, done=shopItems.filter(i=>i.done).length;
+  let html=`<div class="shop-summary">
+    <div class="shop-stat"><div class="shop-stat-num">${total}</div><div class="shop-stat-label">總項目</div></div>
+    <div class="shop-stat"><div class="shop-stat-num">${done}</div><div class="shop-stat-label">已買到</div></div>
+    <div class="shop-stat"><div class="shop-stat-num">${total-done}</div><div class="shop-stat-label">待購買</div></div>
+  </div>`;
+  const pending=shopItems.filter(i=>!i.done), doneItems=shopItems.filter(i=>i.done);
+  const ordered=[...pending,...doneItems];
+  CATS.forEach(cat=>{
+    const items=ordered.filter(i=>i.cat===cat);
+    if(!items.length) return;
+    html+=`<div class="cat-section"><div class="cat-header"><span class="cat-label">${CAT_ICON[cat]} ${cat}</span><button class="cat-add-btn" onclick="openShop('${cat}')"><i class="ti ti-plus"></i> 新增</button></div>`;
+    items.forEach(item=>{
+      html+=`<div class="shop-item${item.done?' done':''}" onclick="toggleShop(${item.id})">
+        <div class="shop-check">${item.done?'<i class="ti ti-check" style="font-size:13px"></i>':''}</div>
+        <div class="shop-item-info"><div class="shop-item-name">${item.name}</div>${item.note?`<div class="shop-item-note">${item.note}</div>`:''}</div>
+        <div class="shop-item-price">${item.price||''}</div>
+        <button class="shop-del-btn" onclick="delShop(event,${item.id})"><i class="ti ti-trash"></i></button>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  if(!shopItems.length) html='<div class="empty-state">還沒有購物項目<br>點下方分類開始新增</div>';
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">`;
+  CATS.forEach(cat=>{ html+=`<button style="padding:10px;background:var(--card);border:0.5px solid var(--border);border-radius:var(--rs);font-size:13px;cursor:pointer;color:var(--text)" onclick="openShop('${cat}')">${CAT_ICON[cat]} ${cat}</button>`; });
+  html+=`</div>`;
+  c.innerHTML=html;
+}
+
+function openShop(cat){
+  selCat_=cat||'藥妝';
+  document.querySelectorAll('[data-cat]').forEach(b=>{ b.classList.toggle('selected',b.dataset.cat===selCat_); });
+  ['sh-name','sh-note','sh-price'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('shop-overlay').classList.add('open');
+}
+function closeShop(){ document.getElementById('shop-overlay').classList.remove('open'); }
+function selCat(btn){ document.querySelectorAll('[data-cat]').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); selCat_=btn.dataset.cat; }
+function addShopItem(){
+  const name=document.getElementById('sh-name').value.trim();
+  if(!name){ alert('請輸入品名'); return; }
+  shopItems.push({id:Date.now(),name,cat:selCat_,note:document.getElementById('sh-note').value.trim(),price:document.getElementById('sh-price').value.trim(),done:false});
+  saveShop(); renderShopping(); closeShop();
+}
+function toggleShop(id){ const i=shopItems.find(x=>x.id===id); if(i){ i.done=!i.done; saveShop(); renderShopping(); } }
+function delShop(e,id){ e.stopPropagation(); if(!confirm('確定刪除？')) return; shopItems=shopItems.filter(x=>x.id!==id); saveShop(); renderShopping(); }
+
+
+function switchTab(name,tabEl){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  tabEl.classList.add('active');
+  document.getElementById('view-'+name).classList.add('active');
+  if(name==='tickets') renderAllTickets();
+  if(name==='shopping') renderShopping();
+}
+
+function handleBgClick(e,id){ if(e.target===document.getElementById(id)){ if(id==='detail-overlay')closeDetail(); else if(id==='add-overlay')closeAdd(); else if(id==='import-overlay')closeImport(); else if(id==='shop-overlay')closeShop(); } }
+
+loadShop();
+load();
+</script>
+</body>
+</html>
