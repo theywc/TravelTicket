@@ -174,6 +174,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .btn-import{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:var(--rs);font-size:15px;cursor:pointer}
 .import-err{font-size:13px;color:#c0392b;padding:0 16px 8px;display:none}
 .divider{height:0.5px;background:var(--border);margin:4px 0}
+
+/* COLLAPSE */
+.day-card-header{cursor:pointer;user-select:none}
+.day-body{transition:none}
+.day-body.collapsed{display:none}
+.collapse-icon{transition:transform .2s;font-size:14px;color:var(--text2);flex-shrink:0}
+.collapsed-indicator .collapse-icon{transform:rotate(-90deg)}
+
+/* SLOT PLACES */
+.slot-places{margin-top:6px;display:flex;flex-direction:column;gap:4px}
+.place-row{display:flex;align-items:center;gap:6px}
+.place-link{font-size:12px;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:3px;padding:3px 8px;border:0.5px solid var(--accent);border-radius:20px;white-space:nowrap}
+.place-link:active{opacity:.7}
+.place-del-btn{background:none;border:none;cursor:pointer;color:var(--text2);font-size:13px;padding:1px}
 </style>
 </head>
 <body>
@@ -192,13 +206,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
   <div class="tab active" onclick="switchTab('itinerary',this)">行程</div>
   <div class="tab" onclick="switchTab('tickets',this)">票券</div>
   <div class="tab" onclick="switchTab('shopping',this)">購物</div>
-  <div class="tab" onclick="switchTab('spots',this)">景點</div>
 </div>
 
 <div class="view active" id="view-itinerary"><div id="itin-container"></div></div>
 <div class="view" id="view-tickets"><div id="tickets-container"></div></div>
 <div class="view" id="view-shopping"><div id="shopping-container"></div></div>
-<div class="view" id="view-spots"><div id="spots-container"></div></div>
 
 <button class="fab" id="fab-btn" onclick="fabAction()"><i class="ti ti-plus"></i></button>
 
@@ -363,6 +375,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
   <div class="fs-sub" id="fs-sub"></div>
 </div>
 
+<!-- ADD PLACE -->
+<div class="overlay" id="add-place" onclick="bgClose(event,'add-place')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><span class="sheet-title">新增地點</span><button class="sheet-close" onclick="closeSheet('add-place')"><i class="ti ti-x"></i></button></div>
+    <div style="height:14px"></div>
+    <div class="form-group"><label class="form-label">地點名稱</label><input class="form-input" id="pl-name" type="text" placeholder="例：弟子屈拉麵本店"></div>
+    <div class="form-group"><label class="form-label">Google Maps 網址</label><input class="form-input" id="pl-url" type="url" placeholder="貼上 maps.app.goo.gl/... 網址"></div>
+    <div class="submit-wrap"><button class="btn-submit" onclick="submitPlace()">加入</button></div>
+  </div>
+</div>
+
+
 <script>
 // ── STORAGE KEYS ──
 const KEYS = { itin:'hk_itin_v3', days:'hk_days_v3', tickets:'hk_tix_v3', shop:'hk_shop_v3', spots:'hk_spots_v3' };
@@ -425,14 +450,12 @@ function switchTab(name, el){
   if(name==='itinerary') renderItinerary();
   if(name==='tickets') renderTickets();
   if(name==='shopping') renderShopping();
-  if(name==='spots') renderSpots();
 }
 
 function fabAction(){
   if(activeTab==='itinerary') openSheet('add-day');
   else if(activeTab==='tickets') openAddTicket(null);
   else if(activeTab==='shopping') openSheet('add-shop');
-  else if(activeTab==='spots') openSheet('add-spot');
 }
 
 // ── HELPERS ──
@@ -472,14 +495,20 @@ function renderItinerary(){
   allDays.forEach((day, i) => {
     const dayTickets = tickets.filter(t=>t.date===day.date).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     const slots = day.slots || [];
+    const collapsed = collapsedDays[day.date] ? 'collapsed' : '';
+
     html += `<div class="day-card" data-date="${day.date}">
-      <div class="day-card-header">
+      <div class="day-card-header ${collapsed ? 'collapsed-indicator' : ''}" onclick="toggleDayCollapse('${day.date}')">
         <div class="day-card-header-left">
           <span class="date-badge badge-${day.badge||'default'}">${day.label}</span>
           <span class="day-subtitle">${day.subtitle||''}</span>
         </div>
-        <button class="day-edit-btn" onclick="openEditDay('${day.date}')" title="編輯這天"><i class="ti ti-dots-vertical"></i></button>
-      </div>`;
+        <div style="display:flex;align-items:center;gap:6px">
+          <i class="ti ti-chevron-down collapse-icon"></i>
+          <button class="day-edit-btn" onclick="event.stopPropagation();openEditDay('${day.date}')" title="編輯這天"><i class="ti ti-dots-vertical"></i></button>
+        </div>
+      </div>
+      <div class="day-body ${collapsed}">`;
 
     if(day.weather && day.weather.length){
       html += `<div class="weather-strip">${day.weather.map(w=>`<span class="w-tag">${w}</span>`).join('')}</div>`;
@@ -488,13 +517,21 @@ function renderItinerary(){
     if(slots.length){
       html += `<div class="slots">`;
       slots.forEach((s,j)=>{
+        const places = s.places || [];
         html += `<div class="slot">
           <div class="slot-time">${s.time}</div>
           <div class="slot-content" style="flex:1">
             <div class="slot-title${s.highlight?' hi':''}">${s.title}</div>
             ${s.note?`<div class="slot-note">${s.note}</div>`:''}
+            ${places.length ? `<div class="slot-places">${places.map((p,pi)=>`
+              <div class="place-row">
+                <a class="place-link" href="${p.url}" target="_blank" onclick="event.stopPropagation()"><i class="ti ti-map-pin" style="font-size:11px"></i>${p.name}</a>
+                <button class="place-del-btn" onclick="event.stopPropagation();delPlace('${day.date}',${j},${pi})" title="刪除"><i class="ti ti-x"></i></button>
+              </div>`).join('')}
+              <button class="place-link" style="background:none;border-style:dashed;cursor:pointer;font-size:11px" onclick="event.stopPropagation();openAddPlace('${day.date}',${j})"><i class="ti ti-plus" style="font-size:11px"></i> 備選地點</button>
+            </div>` : `<div style="margin-top:5px"><button class="place-link" style="background:none;border-style:dashed;cursor:pointer;font-size:11px" onclick="event.stopPropagation();openAddPlace('${day.date}',${j})"><i class="ti ti-map-pin" style="font-size:11px"></i> 加入地點</button></div>`}
           </div>
-          <button class="slot-del" onclick="delSlot('${day.date}',${j})" title="刪除"><i class="ti ti-x"></i></button>
+          <button class="slot-del" onclick="event.stopPropagation();delSlot('${day.date}',${j})" title="刪除"><i class="ti ti-x"></i></button>
         </div>`;
       });
       html += `</div>`;
@@ -506,7 +543,6 @@ function renderItinerary(){
       html += `<div class="outfit-box"><div class="outfit-label">穿衣建議</div><div class="outfit-items">${day.outfit.map(o=>`<span class="outfit-item">${o}</span>`).join('')}</div></div>`;
     }
 
-    // day tickets
     html += `<div class="sub-section">
       <div class="sub-header">
         <span class="sub-label">🎫 當日票券</span>
@@ -526,7 +562,7 @@ function renderItinerary(){
     } else {
       html += `<div class="no-items">尚無票券</div>`;
     }
-    html += `</div></div>`;
+    html += `</div></div></div>`;
   });
 
   html += `<div style="text-align:center;padding:.5rem 0 1rem;font-size:13px;color:var(--text2)">
@@ -719,38 +755,6 @@ function openShopWithCat(cat){
 function toggleShop(id){ const i=shopItems.find(x=>x.id===id); if(i){i.done=!i.done; saveAll(); renderShopping();} }
 function delShop(e,id){ e.stopPropagation(); if(!confirm('確定刪除？')) return; shopItems=shopItems.filter(x=>x.id!==id); saveAll(); renderShopping(); }
 
-// ── SPOTS ──
-function submitSpot(){
-  const name = document.getElementById('sp-name').value.trim();
-  if(!name){ alert('請輸入景點名稱'); return; }
-  spots.push({id:Date.now(), cat:SEL.spcat, name,
-    note:document.getElementById('sp-note').value.trim(),
-    url:document.getElementById('sp-url').value.trim()});
-  saveAll(); closeSheet('add-spot'); renderSpots();
-}
-
-function renderSpots(){
-  const c = document.getElementById('spots-container');
-  if(!spots.length){ c.innerHTML='<div class="empty-state">還沒有景點<br>點右下角 + 新增</div>'; return; }
-  const grouped={};
-  spots.forEach(s=>{ if(!grouped[s.cat])grouped[s.cat]=[]; grouped[s.cat].push(s); });
-  c.innerHTML = Object.keys(grouped).map(cat=>`
-    <div class="section-title">${SPCATS[cat]||'📍'} ${cat}</div>
-    ${grouped[cat].map(s=>`
-      <div class="spot-card">
-        <div class="spot-icon">${SPCATS[s.cat]||'📍'}</div>
-        <div class="spot-info">
-          <div class="spot-name">${s.name}</div>
-          <div class="spot-cat">${s.cat}</div>
-          ${s.note?`<div class="spot-note">${s.note}</div>`:''}
-        </div>
-        ${s.url?`<button class="spot-map-btn" onclick="openLink('${s.url}')"><i class="ti ti-map-pin"></i> 地圖</button>`:''}
-        <button class="spot-del" onclick="delSpot(${s.id})"><i class="ti ti-trash"></i></button>
-      </div>`).join('')}`).join('');
-}
-
-function openLink(url){ window.open(url,'_blank'); }
-function delSpot(id){ if(!confirm('確定刪除？')) return; spots=spots.filter(s=>s.id!==id); saveAll(); renderSpots(); }
 
 // ── IMPORT ──
 function doImport(){
@@ -794,6 +798,58 @@ function openFullscreen(){
   document.getElementById('fs-qr').classList.add('open');
 }
 function closeFullscreen(){ document.getElementById('fs-qr').classList.remove('open'); }
+
+
+// ── COLLAPSE ──
+let collapsedDays = {};
+
+function toggleDayCollapse(date){
+  collapsedDays[date] = !collapsedDays[date];
+  renderItinerary();
+}
+
+// ── PLACES ──
+let addingPlaceFor = {date:null, slotIdx:null};
+
+function openAddPlace(date, slotIdx){
+  addingPlaceFor = {date, slotIdx};
+  ['pl-name','pl-url'].forEach(id=>document.getElementById(id).value='');
+  openSheet('add-place');
+}
+
+function submitPlace(){
+  const name = document.getElementById('pl-name').value.trim();
+  const url = document.getElementById('pl-url').value.trim();
+  if(!name){ alert('請輸入地點名稱'); return; }
+  if(!url){ alert('請貼上 Google Maps 網址'); return; }
+  const {date, slotIdx} = addingPlaceFor;
+  let day = customDays.find(d=>d.date===date);
+  if(!day){
+    const src = getAllDays().find(d=>d.date===date);
+    if(!src){ alert('找不到這天'); return; }
+    day = {...src, slots: JSON.parse(JSON.stringify(src.slots||[]))};
+    customDays.push(day);
+  }
+  const slot = day.slots[slotIdx];
+  if(!slot){ alert('找不到這個項目'); return; }
+  slot.places = slot.places || [];
+  slot.places.push({name, url});
+  saveAll(); closeSheet('add-place'); renderItinerary();
+}
+
+function delPlace(date, slotIdx, placeIdx){
+  let day = customDays.find(d=>d.date===date);
+  if(!day){
+    const src = getAllDays().find(d=>d.date===date);
+    if(!src) return;
+    day = {...src, slots: JSON.parse(JSON.stringify(src.slots||[]))};
+    customDays.push(day);
+  }
+  const slot = day.slots[slotIdx];
+  if(!slot) return;
+  slot.places = (slot.places||[]).filter((_,i)=>i!==placeIdx);
+  saveAll(); renderItinerary();
+}
 
 // ── SHEETS ──
 function openSheet(id){ document.getElementById(id).classList.add('open'); }
